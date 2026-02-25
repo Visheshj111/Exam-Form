@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Check, X, ChevronDown, ChevronUp } from "lucide-react";
 
 interface Question {
   id: number;
@@ -264,15 +265,19 @@ const QUESTION_SETS = [
 ];
 
 export default function ExamForm() {
-  const [view, setView] = useState<"home" | "exam" | "results">("home");
+  const [view, setView] = useState<"home" | "exam" | "results" | "review">("home");
   const [selectedSection, setSelectedSection] = useState<number | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number | null>>({});
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [expandedQuestions, setExpandedQuestions] = useState<Record<number, boolean>>({});
 
   const handleStartSection = (sectionId: number) => {
     setSelectedSection(sectionId);
     setCurrentQuestionIndex(0);
     setSelectedAnswers({});
+    setShowFeedback(false);
     setView("exam");
   };
 
@@ -281,6 +286,7 @@ export default function ExamForm() {
     setSelectedSection(null);
     setCurrentQuestionIndex(0);
     setSelectedAnswers({});
+    setShowFeedback(false);
   };
 
   const handleSelectAnswer = (optionIndex: number) => {
@@ -290,29 +296,56 @@ export default function ExamForm() {
       ...selectedAnswers,
       [currentQuestion.id]: optionIndex,
     });
+    
+    // Show immediate feedback
+    if (optionIndex === currentQuestion.correctAnswer) {
+      setFeedbackMessage("✓ Correct!");
+    } else {
+      setFeedbackMessage("✗ Wrong! The correct answer is: " + currentQuestion.options[currentQuestion.correctAnswer]);
+    }
+    setShowFeedback(true);
   };
 
   const handleNext = () => {
     const questions = selectedSection ? QUESTION_SETS[selectedSection - 1] : [];
+    const currentQuestion = questions[currentQuestionIndex];
+    
+    // Check if answer is selected
+    if (selectedAnswers[currentQuestion.id] === null || selectedAnswers[currentQuestion.id] === undefined) {
+      alert("Please select an answer before moving to the next question.");
+      return;
+    }
+    
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setShowFeedback(false);
     }
   };
 
   const handlePrevious = () => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
+      setShowFeedback(false);
     }
   };
 
   const handleSubmit = () => {
-    setView("results");
+    const questions = selectedSection ? QUESTION_SETS[selectedSection - 1] : [];
+    const currentQuestion = questions[currentQuestionIndex];
+    
+    // Check if answer is selected
+    if (selectedAnswers[currentQuestion.id] === null || selectedAnswers[currentQuestion.id] === undefined) {
+      alert("Please select an answer before submitting.");
+      return;
+    }
+    
+    setView("review");
   };
 
   const questions = selectedSection ? QUESTION_SETS[selectedSection - 1] : [];
   const currentQuestion = questions[currentQuestionIndex];
   const currentAnswer = currentQuestion ? selectedAnswers[currentQuestion.id] : null;
-  const answeredCount = Object.keys(selectedAnswers).length;
+  const answeredCount = Object.values(selectedAnswers).filter((a) => a !== null && a !== undefined).length;
 
   if (view === "home") {
     return (
@@ -409,6 +442,22 @@ export default function ExamForm() {
               ))}
             </div>
 
+            {/* Feedback Message */}
+            {showFeedback && (
+              <div style={{
+                padding: "16px",
+                borderRadius: "12px",
+                marginBottom: "32px",
+                background: feedbackMessage.includes("✓") ? "#dcfce7" : "#fee2e2",
+                border: feedbackMessage.includes("✓") ? "2px solid #22c55e" : "2px solid #dc2626",
+                color: feedbackMessage.includes("✓") ? "#15803d" : "#991b1b",
+                fontSize: "16px",
+                fontWeight: "600"
+              }}>
+                {feedbackMessage}
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: "16px" }}>
               <button
                 onClick={handlePrevious}
@@ -430,15 +479,16 @@ export default function ExamForm() {
               </button>
               <button
                 onClick={isLastQuestion ? handleSubmit : handleNext}
+                disabled={currentAnswer === null || currentAnswer === undefined}
                 style={{
                   flex: 1,
                   padding: "12px",
                   borderRadius: "8px",
-                  background: "linear-gradient(to right, #3b82f6, #14b8a6)",
+                  background: (currentAnswer === null || currentAnswer === undefined) ? "#d1d5db" : "linear-gradient(to right, #3b82f6, #14b8a6)",
                   color: "white",
                   fontWeight: "600",
                   border: "none",
-                  cursor: "pointer",
+                  cursor: (currentAnswer === null || currentAnswer === undefined) ? "not-allowed" : "pointer",
                   fontSize: "16px",
                 }}
               >
@@ -451,7 +501,7 @@ export default function ExamForm() {
     );
   }
 
-  if (view === "results") {
+  if (view === "review") {
     const correctAnswers = questions.filter(
       (q) => selectedAnswers[q.id] === q.correctAnswer
     ).length;
@@ -459,12 +509,13 @@ export default function ExamForm() {
 
     return (
       <div style={{ minHeight: "100vh", background: "linear-gradient(to bottom right, #eff6ff, #f0fdfa)", padding: "32px" }}>
-        <div style={{ maxWidth: "896px", margin: "0 auto" }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
           <h1 style={{ fontSize: "48px", fontWeight: "bold", color: "#111827", marginBottom: "16px", textAlign: "center" }}>
             Section Complete!
           </h1>
 
-          <div style={{ background: "white", borderRadius: "16px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", padding: "48px 32px", textAlign: "center" }}>
+          {/* Summary Card */}
+          <div style={{ background: "white", borderRadius: "16px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", padding: "48px 32px", textAlign: "center", marginBottom: "32px" }}>
             <div
               style={{
                 width: "128px",
@@ -500,8 +551,8 @@ export default function ExamForm() {
                 <p style={{ fontSize: "24px", fontWeight: "bold", color: "#dc2626" }}>{questions.length - correctAnswers}</p>
               </div>
               <div style={{ background: "#ccfbf1", padding: "16px", borderRadius: "12px" }}>
-                <p style={{ fontSize: "14px", color: "#4b5563", marginBottom: "8px" }}>Unanswered</p>
-                <p style={{ fontSize: "24px", fontWeight: "bold", color: "#14b8a6" }}>{questions.length - answeredCount}</p>
+                <p style={{ fontSize: "14px", color: "#4b5563", marginBottom: "8px" }}>Total</p>
+                <p style={{ fontSize: "24px", fontWeight: "bold", color: "#14b8a6" }}>{questions.length}</p>
               </div>
             </div>
 
@@ -526,6 +577,7 @@ export default function ExamForm() {
                 onClick={() => {
                   setCurrentQuestionIndex(0);
                   setSelectedAnswers({});
+                  setShowFeedback(false);
                   setView("exam");
                 }}
                 style={{
@@ -543,6 +595,100 @@ export default function ExamForm() {
                 Retake Section
               </button>
             </div>
+          </div>
+
+          {/* Detailed Review */}
+          <h2 style={{ fontSize: "28px", fontWeight: "bold", color: "#111827", marginBottom: "24px" }}>Detailed Review</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {questions.map((q, idx) => {
+              const userAnswer = selectedAnswers[q.id];
+              const isCorrect = userAnswer === q.correctAnswer;
+              const isExpanded = expandedQuestions[q.id];
+
+              return (
+                <div
+                  key={q.id}
+                  style={{
+                    background: "white",
+                    borderRadius: "12px",
+                    border: isCorrect ? "2px solid #22c55e" : "2px solid #dc2626",
+                    overflow: "hidden",
+                  }}
+                >
+                  <button
+                    onClick={() => setExpandedQuestions({ ...expandedQuestions, [q.id]: !isExpanded })}
+                    style={{
+                      width: "100%",
+                      padding: "16px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      background: isCorrect ? "#f0fdf4" : "#fef2f2",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      fontWeight: "600",
+                      color: isCorrect ? "#15803d" : "#991b1b",
+                    }}
+                  >
+                    <span>Q{q.id}: {isCorrect ? "✓ Correct" : "✗ Incorrect"}</span>
+                    {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                  </button>
+
+                  {isExpanded && (
+                    <div style={{ padding: "16px", background: "white" }}>
+                      <p style={{ color: "#374151", marginBottom: "16px", fontSize: "16px" }}>{q.question}</p>
+
+                      <div style={{ marginBottom: "16px" }}>
+                        <p style={{ fontSize: "14px", fontWeight: "600", color: "#4b5563", marginBottom: "8px" }}>Your Answer:</p>
+                        <div style={{
+                          padding: "12px",
+                          background: isCorrect ? "#dcfce7" : "#fee2e2",
+                          borderRadius: "8px",
+                          color: isCorrect ? "#15803d" : "#991b1b",
+                          fontSize: "15px"
+                        }}>
+                          {userAnswer !== null && userAnswer !== undefined ? q.options[userAnswer] : "Not answered"}
+                        </div>
+                      </div>
+
+                      {!isCorrect && (
+                        <div>
+                          <p style={{ fontSize: "14px", fontWeight: "600", color: "#4b5563", marginBottom: "8px" }}>Correct Answer:</p>
+                          <div style={{
+                            padding: "12px",
+                            background: "#dcfce7",
+                            borderRadius: "8px",
+                            color: "#15803d",
+                            fontSize: "15px"
+                          }}>
+                            {q.options[q.correctAnswer]}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ marginTop: "32px", textAlign: "center" }}>
+            <button
+              onClick={handleBackToHome}
+              style={{
+                padding: "12px 32px",
+                borderRadius: "8px",
+                background: "linear-gradient(to right, #3b82f6, #14b8a6)",
+                color: "white",
+                fontWeight: "600",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "16px",
+              }}
+            >
+              Back to Home
+            </button>
           </div>
         </div>
       </div>

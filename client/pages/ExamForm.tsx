@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, CheckCircle2, Circle } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Question {
@@ -8,61 +8,83 @@ interface Question {
   type: "multiple-choice" | "true-false" | "short-answer";
   options?: string[];
   correctAnswer?: string | number;
-  category: string;
 }
 
-const QUESTIONS: Question[] = Array.from({ length: 60 }, (_, i) => {
-  const types: ("multiple-choice" | "true-false" | "short-answer")[] = [
-    "multiple-choice",
-    "true-false",
-    "multiple-choice",
-  ];
-  const categories = [
-    "Fundamentals",
-    "Advanced",
-    "Practical",
-    "Theory",
-    "Best Practices",
-  ];
+const SECTIONS = [
+  {
+    id: 1,
+    name: "Section 1",
+    description: "Core Concepts",
+  },
+  {
+    id: 2,
+    name: "Section 2",
+    description: "Intermediate Topics",
+  },
+  {
+    id: 3,
+    name: "Section 3",
+    description: "Advanced Concepts",
+  },
+  {
+    id: 4,
+    name: "Section 4",
+    description: "Practical Applications",
+  },
+  {
+    id: 5,
+    name: "Section 5",
+    description: "Specialized Topics",
+  },
+];
 
-  const questionNum = i + 1;
-  const type = types[i % 3];
-  const category = categories[i % 5];
+const generateQuestions = (sectionId: number): Question[] => {
+  return Array.from({ length: 60 }, (_, i) => {
+    const types: ("multiple-choice" | "true-false" | "short-answer")[] = [
+      "multiple-choice",
+      "true-false",
+      "multiple-choice",
+    ];
 
-  if (type === "true-false") {
-    return {
-      id: questionNum,
-      question: `Question ${questionNum}: Is the following statement correct? "Modern web development requires understanding of asynchronous programming patterns."`,
-      type: "true-false",
-      options: ["True", "False"],
-      correctAnswer: 0,
-      category,
-    };
-  } else if (type === "multiple-choice") {
-    return {
-      id: questionNum,
-      question: `Question ${questionNum}: Which of the following best describes the primary benefit of using a component-based architecture?`,
-      type: "multiple-choice",
-      options: [
-        "Reusability and maintainability",
-        "Increased bundle size",
-        "Slower initial load time",
-        "Reduced development speed",
-      ],
-      correctAnswer: 0,
-      category,
-    };
-  } else {
-    return {
-      id: questionNum,
-      question: `Question ${questionNum}: Explain the key difference between synchronous and asynchronous programming.`,
-      type: "short-answer",
-      category,
-    };
-  }
-});
+    const questionNum = i + 1;
+    const type = types[i % 3];
+
+    if (type === "true-false") {
+      return {
+        id: questionNum,
+        question: `[Section ${sectionId}] Question ${questionNum}: Is the following statement correct? "Modern development requires understanding of core principles."`,
+        type: "true-false",
+        options: ["True", "False"],
+        correctAnswer: 0,
+      };
+    } else if (type === "multiple-choice") {
+      return {
+        id: questionNum,
+        question: `[Section ${sectionId}] Question ${questionNum}: Which of the following best describes the primary concept?`,
+        type: "multiple-choice",
+        options: [
+          "Option A - Most relevant",
+          "Option B - Less relevant",
+          "Option C - Incorrect",
+          "Option D - Incorrect",
+        ],
+        correctAnswer: 0,
+      };
+    } else {
+      return {
+        id: questionNum,
+        question: `[Section ${sectionId}] Question ${questionNum}: Explain the key difference between the two approaches.`,
+        type: "short-answer",
+      };
+    }
+  });
+};
+
+type ViewType = "home" | "exam" | "results";
 
 export default function ExamForm() {
+  const [view, setView] = useState<ViewType>("home");
+  const [selectedSection, setSelectedSection] = useState<number | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string | number | null>>(
     {}
@@ -70,17 +92,19 @@ export default function ExamForm() {
   const [showResults, setShowResults] = useState(false);
   const [searchFilter, setSearchFilter] = useState("");
 
+  const currentSection = selectedSection ? SECTIONS.find(s => s.id === selectedSection) : null;
+  const questions = selectedSection ? generateQuestions(selectedSection) : [];
+  
   const filteredQuestions = useMemo(() => {
-    return QUESTIONS.filter(
+    return questions.filter(
       (q) =>
-        q.question.toLowerCase().includes(searchFilter.toLowerCase()) ||
-        q.category.toLowerCase().includes(searchFilter.toLowerCase())
+        q.question.toLowerCase().includes(searchFilter.toLowerCase())
     );
-  }, [searchFilter]);
+  }, [searchFilter, questions]);
 
-  const currentQuestion = QUESTIONS[currentIndex];
+  const currentQuestion = questions[currentIndex];
   const answeredCount = Object.values(answers).filter((a) => a !== null).length;
-  const progress = Math.round((answeredCount / QUESTIONS.length) * 100);
+  const progress = Math.round((answeredCount / questions.length) * 100);
 
   const handleAnswer = (value: string | number) => {
     setAnswers({
@@ -90,7 +114,7 @@ export default function ExamForm() {
   };
 
   const handleNext = () => {
-    if (currentIndex < QUESTIONS.length - 1) {
+    if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
     }
   };
@@ -103,7 +127,7 @@ export default function ExamForm() {
 
   const calculateScore = () => {
     let correct = 0;
-    QUESTIONS.forEach((q) => {
+    questions.forEach((q) => {
       if (
         answers[q.id] !== null &&
         answers[q.id] !== undefined &&
@@ -119,27 +143,105 @@ export default function ExamForm() {
     setShowResults(true);
   };
 
-  const handleReset = () => {
+  const handleStartSection = (sectionId: number) => {
+    setSelectedSection(sectionId);
+    setCurrentIndex(0);
     setAnswers({});
     setShowResults(false);
-    setCurrentIndex(0);
-    setSearchFilter("");
+    setView("exam");
   };
 
+  const handleBackToHome = () => {
+    setView("home");
+    setSelectedSection(null);
+    setCurrentIndex(0);
+    setAnswers({});
+    setShowResults(false);
+  };
+
+  // HOME VIEW - Section Selection
+  if (view === "home") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 p-4 sm:p-6 lg:p-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="mb-12">
+            <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-2">
+              Exam Assessment
+            </h1>
+            <p className="text-gray-600 text-lg">
+              Select a section to begin. Each section contains 60 questions.
+            </p>
+          </div>
+
+          {/* Sections Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {SECTIONS.map((section) => (
+              <div
+                key={section.id}
+                className="bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all group"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-teal-100 flex items-center justify-center">
+                    <span className="text-xl font-bold text-blue-600">
+                      {section.id}
+                    </span>
+                  </div>
+                  <div className="text-sm px-3 py-1 rounded-full bg-teal-50 text-teal-700 font-medium">
+                    60 Q's
+                  </div>
+                </div>
+
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  {section.name}
+                </h2>
+                <p className="text-gray-600 mb-6">{section.description}</p>
+
+                <Button
+                  onClick={() => handleStartSection(section.id)}
+                  className="w-full bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white py-3 text-lg font-semibold rounded-lg transition-all group-hover:shadow-lg"
+                >
+                  Start Section
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {/* Info Section */}
+          <div className="mt-12 bg-white rounded-2xl shadow-lg p-8 border-l-4 border-blue-500">
+            <h3 className="text-xl font-bold text-gray-900 mb-3">
+              About This Exam
+            </h3>
+            <p className="text-gray-600 mb-2">
+              • Total: 5 sections with 60 questions each (300 questions total)
+            </p>
+            <p className="text-gray-600 mb-2">
+              • Question Types: Multiple choice, True/False, and Short answer
+            </p>
+            <p className="text-gray-600">
+              • Results: Detailed feedback and performance analysis after each section
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // RESULTS VIEW - Section Results
   if (showResults) {
     const score = calculateScore();
-    const percentage = Math.round((score / QUESTIONS.length) * 100);
+    const percentage = Math.round((score / questions.length) * 100);
     const passed = percentage >= 70;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 p-4 sm:p-6 lg:p-8">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-2">
-              Exam Complete
+              Section {selectedSection} Complete
             </h1>
-            <p className="text-gray-600">Review your results below</p>
+            <p className="text-gray-600">{currentSection?.description}</p>
           </div>
 
           {/* Results Card */}
@@ -169,7 +271,7 @@ export default function ExamForm() {
                 {passed ? "Congratulations!" : "Keep Learning"}
               </h2>
               <p className="text-gray-600 text-lg">
-                You answered {score} out of {QUESTIONS.length} questions
+                You answered {score} out of {questions.length} questions
                 correctly
               </p>
             </div>
@@ -183,81 +285,63 @@ export default function ExamForm() {
               <div className="bg-red-50 rounded-lg p-4 text-center">
                 <p className="text-sm text-gray-600 mb-1">Incorrect Answers</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {QUESTIONS.length - score}
+                  {questions.length - score}
                 </p>
               </div>
-              <div className="bg-purple-50 rounded-lg p-4 text-center">
+              <div className="bg-teal-50 rounded-lg p-4 text-center">
                 <p className="text-sm text-gray-600 mb-1">Unanswered</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {QUESTIONS.length - answeredCount}
+                <p className="text-2xl font-bold text-teal-600">
+                  {questions.length - answeredCount}
                 </p>
               </div>
             </div>
 
-            {/* Category Breakdown */}
-            <div className="mb-8">
-              <h3 className="font-semibold text-gray-900 mb-4">
-                Performance by Category
-              </h3>
-              <div className="space-y-3">
-                {Array.from(
-                  new Set(QUESTIONS.map((q) => q.category))
-                ).map((category) => {
-                  const categoryQuestions = QUESTIONS.filter(
-                    (q) => q.category === category
-                  );
-                  const categoryCorrect = categoryQuestions.filter(
-                    (q) => answers[q.id] === q.correctAnswer
-                  ).length;
-                  const categoryPercentage = Math.round(
-                    (categoryCorrect / categoryQuestions.length) * 100
-                  );
-
-                  return (
-                    <div key={category}>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">
-                          {category}
-                        </span>
-                        <span className="text-sm font-semibold text-gray-900">
-                          {categoryCorrect}/{categoryQuestions.length}
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all"
-                          style={{ width: `${categoryPercentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="flex gap-4">
+              <Button
+                onClick={handleBackToHome}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-gray-300 text-gray-900 font-semibold hover:bg-gray-50 transition-all"
+              >
+                <Home size={20} />
+                Back to Sections
+              </Button>
+              <Button
+                onClick={() => {
+                  setCurrentIndex(0);
+                  setAnswers({});
+                  setShowResults(false);
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-teal-500 text-white font-semibold hover:from-blue-600 hover:to-teal-600 transition-all"
+              >
+                Retake Section
+              </Button>
             </div>
-
-            <Button
-              onClick={handleReset}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white py-6 text-lg font-semibold rounded-lg transition-all"
-            >
-              Retake Exam
-            </Button>
           </div>
         </div>
       </div>
     );
   }
 
+  // EXAM VIEW - Question and Answer
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50">
       <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-            Exam Assessment
-          </h1>
-          <p className="text-gray-600">
-            {QUESTIONS.length} questions • {currentQuestion.category}
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">
+                {currentSection?.name}
+              </h1>
+              <p className="text-gray-600">{currentSection?.description}</p>
+            </div>
+            <button
+              onClick={handleBackToHome}
+              className="text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-50 transition-all"
+            >
+              <Home size={18} />
+              Exit
+            </button>
+          </div>
         </div>
 
         {/* Progress Bar */}
@@ -267,12 +351,12 @@ export default function ExamForm() {
               Progress
             </span>
             <span className="text-sm font-semibold text-gray-700">
-              {answeredCount}/{QUESTIONS.length}
+              {answeredCount}/{questions.length}
             </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-3">
             <div
-              className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300"
+              className="bg-gradient-to-r from-blue-500 to-teal-500 h-3 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -285,11 +369,8 @@ export default function ExamForm() {
               {/* Question Header */}
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="inline-block bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 px-4 py-1 rounded-full text-sm font-semibold">
-                    Question {currentIndex + 1} of {QUESTIONS.length}
-                  </span>
-                  <span className="text-sm font-medium text-gray-500">
-                    {currentQuestion.category}
+                  <span className="inline-block bg-gradient-to-r from-blue-100 to-teal-100 text-blue-700 px-4 py-1 rounded-full text-sm font-semibold">
+                    Question {currentIndex + 1} of {questions.length}
                   </span>
                 </div>
 
@@ -351,17 +432,17 @@ export default function ExamForm() {
                   <ChevronLeft size={20} />
                   Previous
                 </Button>
-                {currentIndex === QUESTIONS.length - 1 ? (
+                {currentIndex === questions.length - 1 ? (
                   <Button
                     onClick={handleSubmit}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold hover:from-blue-600 hover:to-purple-600 transition-all"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-teal-500 text-white font-semibold hover:from-blue-600 hover:to-teal-600 transition-all"
                   >
-                    Submit Exam
+                    Submit Section
                   </Button>
                 ) : (
                   <Button
                     onClick={handleNext}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold hover:from-blue-600 hover:to-purple-600 transition-all"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-teal-500 text-white font-semibold hover:from-blue-600 hover:to-teal-600 transition-all"
                   >
                     Next
                     <ChevronRight size={20} />
@@ -387,13 +468,13 @@ export default function ExamForm() {
 
               {/* Question List */}
               <div className="max-h-96 overflow-y-auto space-y-2">
-                {QUESTIONS.map((q, idx) => (
+                {questions.map((q, idx) => (
                   <button
                     key={q.id}
                     onClick={() => setCurrentIndex(idx)}
                     className={`w-full flex items-center gap-2 p-2 rounded-lg transition-all text-sm ${
                       currentIndex === idx
-                        ? "bg-gradient-to-r from-blue-100 to-purple-100"
+                        ? "bg-gradient-to-r from-blue-100 to-teal-100"
                         : "hover:bg-gray-50"
                     }`}
                   >
@@ -428,13 +509,13 @@ export default function ExamForm() {
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-600">Answered</span>
                   <span className="font-bold text-gray-900">
-                    {answeredCount}/{QUESTIONS.length}
+                    {answeredCount}/{questions.length}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-600">Unanswered</span>
                   <span className="font-bold text-gray-900">
-                    {QUESTIONS.length - answeredCount}
+                    {questions.length - answeredCount}
                   </span>
                 </div>
               </div>

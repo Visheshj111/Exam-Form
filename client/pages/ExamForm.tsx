@@ -272,12 +272,14 @@ export default function ExamForm() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [expandedQuestions, setExpandedQuestions] = useState<Record<number, boolean>>({});
+  const [isQuestionSubmitted, setIsQuestionSubmitted] = useState(false);
 
   const handleStartSection = (sectionId: number) => {
     setSelectedSection(sectionId);
     setCurrentQuestionIndex(0);
     setSelectedAnswers({});
     setShowFeedback(false);
+    setIsQuestionSubmitted(false);
     setView("exam");
   };
 
@@ -287,23 +289,34 @@ export default function ExamForm() {
     setCurrentQuestionIndex(0);
     setSelectedAnswers({});
     setShowFeedback(false);
+    setIsQuestionSubmitted(false);
   };
 
   const handleSelectAnswer = (optionIndex: number) => {
+    if (isQuestionSubmitted) return;
     const questions = selectedSection ? QUESTION_SETS[selectedSection - 1] : [];
     const currentQuestion = questions[currentQuestionIndex];
     setSelectedAnswers({
       ...selectedAnswers,
       [currentQuestion.id]: optionIndex,
     });
-    
-    // Show immediate feedback
-    if (optionIndex === currentQuestion.correctAnswer) {
+  };
+
+  const handleSubmitQuestion = () => {
+    const questions = selectedSection ? QUESTION_SETS[selectedSection - 1] : [];
+    const currentQuestion = questions[currentQuestionIndex];
+    if (selectedAnswers[currentQuestion.id] === null || selectedAnswers[currentQuestion.id] === undefined) {
+      alert("Please select an answer before submitting.");
+      return;
+    }
+    const selectedIdx = selectedAnswers[currentQuestion.id];
+    if (selectedIdx === currentQuestion.correctAnswer) {
       setFeedbackMessage("✓ Correct!");
     } else {
       setFeedbackMessage("✗ Wrong! The correct answer is: " + currentQuestion.options[currentQuestion.correctAnswer]);
     }
     setShowFeedback(true);
+    setIsQuestionSubmitted(true);
   };
 
   const handleNext = () => {
@@ -319,6 +332,7 @@ export default function ExamForm() {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setShowFeedback(false);
+      setIsQuestionSubmitted(false);
     }
   };
 
@@ -326,6 +340,7 @@ export default function ExamForm() {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
       setShowFeedback(false);
+      setIsQuestionSubmitted(false);
     }
   };
 
@@ -478,7 +493,7 @@ export default function ExamForm() {
                 Previous
               </button>
               <button
-                onClick={isLastQuestion ? handleSubmit : handleNext}
+                onClick={isQuestionSubmitted ? (isLastQuestion ? handleSubmit : handleNext) : handleSubmitQuestion}
                 disabled={currentAnswer === null || currentAnswer === undefined}
                 style={{
                   flex: 1,
@@ -492,7 +507,7 @@ export default function ExamForm() {
                   fontSize: "16px",
                 }}
               >
-                {isLastQuestion ? "Submit" : "Next"}
+                {isQuestionSubmitted ? "Next" : "Submit"}
               </button>
             </div>
           </div>
@@ -578,6 +593,7 @@ export default function ExamForm() {
                   setCurrentQuestionIndex(0);
                   setSelectedAnswers({});
                   setShowFeedback(false);
+                  setIsQuestionSubmitted(false);
                   setView("exam");
                 }}
                 style={{
